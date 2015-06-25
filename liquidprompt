@@ -748,9 +748,14 @@ _lp_git_branch_color()
     branch="$(_lp_git_branch)"
     if [[ -n "$branch" ]] ; then
 
+        # NOTE: `git diff --quiet --ignore-submodules HEAD` is very fast and returns a 1
+        #       if the repository has been modified. Might be useful?
+
         local end
         end="$NO_COL"
-        if LC_ALL=C \git status --porcelain 2>/dev/null | grep -Eq '^\?\?'; then
+        # NOTE (phillip) this is MUCH faster
+        if [ ! -z $(git ls-files --other --directory --exclude-standard | sed q1) ]; then
+        #if LC_ALL=C \git status --porcelain 2>/dev/null | grep -Eq '^\?\?'; then
             end="$LP_COLOR_CHANGES$LP_MARK_UNTRACKED$end"
         fi
 
@@ -772,13 +777,20 @@ _lp_git_branch_color()
             fi
         fi
 
+        # TODO(phillip) This section is also super slow ============================
         local ret
         local shortstat # only to check for uncommitted changes
-        shortstat="$(LC_ALL=C \git diff --shortstat HEAD 2>/dev/null)"
+
+        # NOTE git diff --shortstat HEAD is the slow command here I believe
+        # Gets number of files changed, insertions, and deletions
+        #shortstat="$(LC_ALL=C \git diff --shortstat HEAD 2>/dev/null)"
+        # TODO(phillip) this is a hack that makes it fast enough in webapp but ignores submodules
+        shortstat="$(LC_ALL=C \git diff --shortstat --ignore-submodules HEAD 2>/dev/null)"
 
         if [[ -n "$shortstat" ]] ; then
             local u_stat # shorstat of *unstaged* changes
-            u_stat="$(LC_ALL=C \git diff --shortstat 2>/dev/null)"
+            #u_stat="$(LC_ALL=C \git diff --shortstat 2>/dev/null)"
+            u_stat="$(LC_ALL=C \git diff --shortstat --ignore-submodules 2>/dev/null)"
             u_stat=${u_stat/*changed, /} # removing "n file(s) changed"
 
             local i_lines # inserted lines
@@ -813,6 +825,7 @@ _lp_git_branch_color()
                 ret="${LP_COLOR_UP}${branch}" # nothing to commit or push
             fi
         fi
+        # ==========================================================================
         echo -ne "$ret$end"
     fi
 }
@@ -1565,7 +1578,7 @@ _lp_set_prompt()
 
     # Display the current Python virtual environment, if available
     if [[ "$LP_ENABLE_VIRTUALENV,$VIRTUAL_ENV" = 1,?* ]] ; then
-        LP_VENV=" [${LP_COLOR_VIRTUALENV}${VIRTUAL_ENV##*/}${NO_COL}]"
+        LP_VENV="(${LP_COLOR_VIRTUALENV}${VIRTUAL_ENV##*/}${NO_COL})\n"
     else
         LP_VENV=
     fi
