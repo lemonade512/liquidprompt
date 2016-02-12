@@ -753,9 +753,9 @@ _lp_git_branch_color()
 
         local end
         end="$NO_COL"
-        # NOTE (phillip) this is MUCH faster
-        if [ ! -z $(git ls-files --other --directory --exclude-standard | sed q1) ]; then
-        #if LC_ALL=C \git status --porcelain 2>/dev/null | grep -Eq '^\?\?'; then
+        # NOTE (phillip) this is MUCH faster. Uncomment the next line if you have performance issues
+        #if [ ! -z $(git ls-files --other --directory --exclude-standard | sed q1) ]; then
+        if LC_ALL=C \git status --porcelain 2>/dev/null | grep -Eq '^\?\?'; then
             end="$LP_COLOR_CHANGES$LP_MARK_UNTRACKED$end"
         fi
 
